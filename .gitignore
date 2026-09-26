@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.code-workspace
+
+# Artefacts de build / PyInstaller
+*.spec.bak
+*.exe
+
+# Clés API et chiffrement (sécurité)
+.env
+.env.*
+!.env.example
+config_local.json
+.tradomatic_key
+*.pem
+*.key
+
+# Bases de données locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs (chemins locaux, sessions)
+logs/
+*.log
+logs_*.txt
+
+# Checkpoints de reprise
+checkpoints/
+
+# Données de projet personnelles (textes, traductions, clés API)
+tradtest/
+projects/
+**/projet.json
+!examples/projet.example.json
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/

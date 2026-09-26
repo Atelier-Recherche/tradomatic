@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "project_name": "Exemple de projet",
+  "created_at": "",
+  "last_modified": "",
+  "paths": {
+    "input_directory": "./input",
+    "output_directory": "./output",
+    "glossary_db": "./output/glossaire.db",
+    "logs_directory": "logs"
+  },
+  "api_settings": {
+    "provider": "gemini",
+    "api_key_encrypted": "",
+    "model": "gemini-1.5-flash",
+    "rate_limit": 60,
+    "retry_max": 3,
+    "timeout": 120
+  },
+  "translation_settings": {
+    "consolidation_frequency": 50,
+    "summary_frequency": 10,
+    "context_window_size": 5,
+    "checkpoint_frequency": 10,
+    "source_language": "allemand",
+    "target_language": "francais",
+    "use_glossary": true
+  },
+  "prompts": {
+    "system_prompt": "",
+    "user_prompt": "",
+    "consolidation_prompt": "",
+    "summary_prompt": ""
+  },
+  "progress": {
+    "current_page": 0,
+    "total_pages": 0,
+    "last_checkpoint": 0
+  },
+  "ui_settings": {
+    "language": "fr_FR",
+    "theme": "dark"
+  }
+}
