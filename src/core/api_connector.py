@@ -96,12 +96,14 @@ class APIConnector(ABC):
         pass
     
     @abstractmethod
-    def consolidate_glossary(self, glossary: Dict[str, str]) -> Dict[str, Any]:
+    def consolidate_glossary(self, glossary: Dict[str, str],
+                             prompt: Optional[str] = None) -> Dict[str, Any]:
         """
         Consolide le glossaire pour détecter les incohérences.
         
         Args:
-            glossary: Dictionnaire des termes actuels {terme_de: terme_fr}
+            glossary: Dictionnaire des termes actuels {terme_source: terme_cible}
+            prompt: Prompt déjà formaté (sinon prompt générique)
             
         Returns:
             Dict contenant:
@@ -111,12 +113,14 @@ class APIConnector(ABC):
         pass
     
     @abstractmethod
-    def generate_summary(self, pages: List[str]) -> str:
+    def generate_summary(self, pages: List[str],
+                         prompt: Optional[str] = None) -> str:
         """
         Génère un résumé contextuel des pages récentes.
         
         Args:
             pages: Liste des contenus des pages récentes
+            prompt: Prompt déjà formaté (sinon prompt générique)
             
         Returns:
             str: Résumé en ~200 mots

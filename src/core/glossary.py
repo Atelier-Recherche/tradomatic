@@ -68,8 +68,8 @@ class Glossary:
         Ajoute un nouveau terme au glossaire.
         
         Args:
-            terme_de: Terme en allemand
-            terme_fr: Traduction en français
+            terme_de: Terme source
+            terme_fr: Traduction cible
             page: Numéro de page de première apparition
             context: Contexte d'utilisation
             note: Note explicative optionnelle
@@ -105,7 +105,7 @@ class Glossary:
         Récupère un terme du glossaire.
         
         Args:
-            terme_de: Terme en allemand
+            terme_de: Terme source
             
         Returns:
             Dict avec les informations du terme, ou None si non trouvé
@@ -143,8 +143,8 @@ class Glossary:
         Met à jour un terme existant.
         
         Args:
-            terme_de: Terme en allemand
-            terme_fr: Traduction en français (peut être modifiée)
+            terme_de: Terme source
+            terme_fr: Traduction cible (peut être modifiée)
             page: Numéro de page courante
             context: Nouveau contexte à ajouter
             note: Note à ajouter/modifier
@@ -183,7 +183,7 @@ class Glossary:
         Incrémente la fréquence d'utilisation d'un terme.
         
         Args:
-            terme_de: Terme en allemand
+            terme_de: Terme source
             page: Numéro de page courante (optionnel)
         """
         conn = sqlite3.connect(self.db_path)
@@ -397,16 +397,16 @@ class Glossary:
         """
         terms = self.get_all_terms_detailed()
         
-        # Trier par ordre alphabétique allemand
+        # Trier par ordre alphabétique (terme source)
         terms_sorted = sorted(terms, key=lambda t: t['terme_de'].lower())
         
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write("# Glossaire terminologique\n\n")
-            f.write("*Glossaire des termes philosophiques allemands utilisés dans la traduction.*\n\n")
+            f.write("*Glossaire des termes spécialisés utilisés dans la traduction.*\n\n")
             f.write("---\n\n")
             
             for term in terms_sorted:
-                # Terme allemand en gras
+                # Terme source en gras
                 f.write(f"**{term['terme_de']}** : {term['terme_fr']}")
                 
                 # Note si présente

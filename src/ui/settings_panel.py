@@ -2,7 +2,9 @@
 Panneau de configuration des paramètres.
 """
 
+import json
 import logging
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
     QComboBox, QLineEdit, QPushButton, QSpinBox, QFileDialog,
@@ -15,6 +17,12 @@ from ..utils.config import get_secure_storage
 from ..core.project import Project
 
 logger = logging.getLogger(__name__)
+
+PRESET_PHILO_DE_FR = "philosophie_de_fr"
+PRESET_CUSTOM = "custom"
+PRESET_FILES = {
+    PRESET_PHILO_DE_FR: Path("templates/presets/philosophie_de_fr.json"),
+}
 
 
 class SettingsPanel(QWidget):
@@ -29,6 +37,7 @@ class SettingsPanel(QWidget):
         self.i18n = get_i18n()
         self.secure_storage = get_secure_storage()
         self.parent_window = parent
+        self._applying_profile = False
         
         self.init_ui()
     
@@ -147,6 +156,21 @@ class SettingsPanel(QWidget):
         context_layout.addWidget(self.context_window)
         layout.addLayout(context_layout)
 
+        # Profil de traduction
+        profile_layout = QHBoxLayout()
+        profile_label = QLabel(self.i18n.t("settings_panel.translation_profile"))
+        self.translation_profile = QComboBox()
+        self.translation_profile.addItem(
+            self.i18n.t("settings_panel.profile_custom"), PRESET_CUSTOM
+        )
+        self.translation_profile.addItem(
+            self.i18n.t("settings_panel.profile_philosophie_de_fr"), PRESET_PHILO_DE_FR
+        )
+        self.translation_profile.currentIndexChanged.connect(self.on_profile_changed)
+        profile_layout.addWidget(profile_label)
+        profile_layout.addWidget(self.translation_profile)
+        layout.addLayout(profile_layout)
+
         # Langue source
         source_lang_layout = QHBoxLayout()
         source_lang_label = QLabel(self.i18n.t("settings_panel.source_language"))
@@ -155,6 +179,7 @@ class SettingsPanel(QWidget):
         self.source_language.addItems([
             "allemand", "francais", "italien", "anglais", "espagnol", "portugais"
         ])
+        self.source_language.currentTextChanged.connect(self.mark_profile_custom)
         source_lang_layout.addWidget(source_lang_label)
         source_lang_layout.addWidget(self.source_language)
         layout.addLayout(source_lang_layout)
@@ -167,6 +192,7 @@ class SettingsPanel(QWidget):
         self.target_language.addItems([
             "francais", "allemand", "italien", "anglais", "espagnol", "portugais"
         ])
+        self.target_language.currentTextChanged.connect(self.mark_profile_custom)
         target_lang_layout.addWidget(target_lang_label)
         target_lang_layout.addWidget(self.target_language)
         layout.addLayout(target_lang_layout)
@@ -403,10 +429,15 @@ class SettingsPanel(QWidget):
         source_language = project.translation_settings.get("source_language", "allemand")
         target_language = project.translation_settings.get("target_language", "francais")
         use_glossary = project.translation_settings.get("use_glossary", True)
+        profile_id = project.translation_settings.get("translation_profile", PRESET_CUSTOM)
 
+        self._applying_profile = True
         self.source_language.setCurrentText(source_language)
         self.target_language.setCurrentText(target_language)
         self.use_glossary.setChecked(use_glossary)
+        profile_index = self.translation_profile.findData(profile_id)
+        self.translation_profile.setCurrentIndex(profile_index if profile_index >= 0 else 0)
+        self._applying_profile = False
         
         # Paths
         input_path = project.paths.get("input_directory", "")
@@ -418,6 +449,84 @@ class SettingsPanel(QWidget):
         logger.info(f"Chemins chargés - Entrée: '{input_path}', Sortie: '{output_path}'")
         logger.debug("Paramètres chargés depuis le projet")
     
+    def mark_profile_custom(self, *_args):
+        """Passe le profil en Personnalisé si l'utilisateur change les langues."""
+        if self._applying_profile:
+            return
+        if self.translation_profile.currentData() != PRESET_CUSTOM:
+            self._applying_profile = True
+            custom_index = self.translation_profile.findData(PRESET_CUSTOM)
+            if custom_index >= 0:
+                self.translation_profile.setCurrentIndex(custom_index)
+            self._applying_profile = False
+
+    def on_profile_changed(self, _index: int = 0):
+        """Applique un preset de traduction (langues + prompts)."""
+        if self._applying_profile:
+            return
+
+        profile_id = self.translation_profile.currentData()
+        if profile_id == PRESET_CUSTOM or profile_id not in PRESET_FILES:
+            return
+
+        preset_path = PRESET_FILES[profile_id]
+        if not preset_path.exists():
+            QMessageBox.warning(
+                self,
+                self.i18n.t("settings_panel.profile_error_title"),
+                self.i18n.t("settings_panel.profile_missing").format(path=str(preset_path))
+            )
+            self._applying_profile = True
+            custom_index = self.translation_profile.findData(PRESET_CUSTOM)
+            if custom_index >= 0:
+                self.translation_profile.setCurrentIndex(custom_index)
+            self._applying_profile = False
+            return
+
+        prompts_panel = getattr(self.parent_window, "prompts_panel", None)
+        if prompts_panel is not None:
+            reply = QMessageBox.question(
+                self,
+                self.i18n.t("settings_panel.profile_confirm_title"),
+                self.i18n.t("settings_panel.profile_confirm_message"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                self._applying_profile = True
+                custom_index = self.translation_profile.findData(PRESET_CUSTOM)
+                if custom_index >= 0:
+                    self.translation_profile.setCurrentIndex(custom_index)
+                self._applying_profile = False
+                return
+
+        try:
+            with open(preset_path, "r", encoding="utf-8") as f:
+                preset = json.load(f)
+
+            self._applying_profile = True
+            self.source_language.setCurrentText(
+                preset.get("source_language", "allemand")
+            )
+            self.target_language.setCurrentText(
+                preset.get("target_language", "francais")
+            )
+            self._applying_profile = False
+
+            if prompts_panel is not None:
+                prompts = preset.get("prompts", {})
+                if prompts:
+                    prompts_panel.apply_prompts(prompts)
+
+            logger.info(f"Profil de traduction appliqué: {profile_id}")
+
+        except Exception as e:
+            logger.error(f"Erreur application profil {profile_id}: {e}")
+            QMessageBox.critical(
+                self,
+                self.i18n.t("settings_panel.profile_error_title"),
+                str(e)
+            )
+
     def save_to_project(self, project: Project):
         """
         Sauvegarde les paramètres dans un projet.
@@ -456,7 +565,8 @@ class SettingsPanel(QWidget):
             "checkpoint_frequency": self.checkpoint_freq.value(),
             "source_language": self.source_language.currentText().strip() or "source",
             "target_language": self.target_language.currentText().strip() or "cible",
-            "use_glossary": self.use_glossary.isChecked()
+            "use_glossary": self.use_glossary.isChecked(),
+            "translation_profile": self.translation_profile.currentData() or PRESET_CUSTOM
         }
         
         # Paths

@@ -5,7 +5,7 @@ Supporte Gemini et Gemma.
 
 import json
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import google.generativeai as genai
 
 from .api_connector import APIConnector, retry
@@ -91,7 +91,7 @@ class GeminiAPI(APIConnector):
             "max_output_tokens": 8192,
         }
         
-        # Configuration de sécurité (permissive pour contenu philosophique)
+        # Configuration de sécurité (permissive pour textes spécialisés)
         self.safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -220,40 +220,42 @@ class GeminiAPI(APIConnector):
             raise
     
     @retry(max_attempts=3)
-    def consolidate_glossary(self, glossary: Dict[str, str]) -> Dict[str, Any]:
+    def consolidate_glossary(self, glossary: Dict[str, str],
+                             prompt: Optional[str] = None) -> Dict[str, Any]:
         """
         Consolide le glossaire via Gemini.
         """
         self._rate_limit_wait()
         
-        # Préparer le prompt
-        glossary_text = "\n".join([f"- {de}: {fr}" for de, fr in glossary.items()])
-        
-        prompt = f"""Tu es un expert en traduction philosophique allemand-français.
+        if prompt:
+            full_prompt = prompt
+        else:
+            glossary_text = "\n".join([f"- {src}: {tgt}" for src, tgt in glossary.items()])
+            full_prompt = f"""Tu es un expert en traduction terminologique.
 Analyse le glossaire fourni et détecte les incohérences terminologiques.
 
 Voici le glossaire actuel :
 
 {glossary_text}
 
-Détecte les incohérences (même concept allemand traduit différemment).
+Détecte les incohérences (même concept source traduit différemment).
 Propose une harmonisation raisonnée.
 
 Réponds UNIQUEMENT avec un objet JSON valide (sans markdown) :
 {{
   "incohérences_détectées": [
     {{
-      "terme_de": "...",
+      "terme_source": "...",
       "traductions_divergentes": ["traduction1", "traduction2"],
       "traduction_recommandée": "...",
       "justification": "..."
     }}
   ],
-  "glossaire_consolidé": {{"terme_de": "terme_fr", ...}}
+  "glossaire_consolidé": {{"terme_source": "terme_cible", ...}}
 }}"""
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self.model.generate_content(full_prompt)
             content = response.text
             
             json_content = self._extract_json_object(content, required_key="glossaire_consolidé")
@@ -265,18 +267,21 @@ Réponds UNIQUEMENT avec un objet JSON valide (sans markdown) :
             raise
     
     @retry(max_attempts=3)
-    def generate_summary(self, pages: List[str]) -> str:
+    def generate_summary(self, pages: List[str],
+                         prompt: Optional[str] = None) -> str:
         """
         Génère un résumé via Gemini.
         """
         self._rate_limit_wait()
         
-        pages_text = "\n\n---\n\n".join(pages)
-        
-        prompt = f"""Tu es un expert en philosophie allemande.
-Résume de manière concise l'argumentation philosophique.
+        if prompt:
+            full_prompt = prompt
+        else:
+            pages_text = "\n\n---\n\n".join(pages)
+            full_prompt = f"""Tu es un expert en synthèse de textes.
+Résume de manière concise le contenu fourni.
 
-Résume en 200 mots l'argumentation philosophique de ces pages :
+Résume en 200 mots le contenu et l'argumentation de ces pages :
 
 {pages_text}
 
@@ -293,7 +298,7 @@ Focus sur : concepts développés, thèses avancées, transitions argumentatives
                 safety_settings=self.safety_settings
             )
             
-            response = model.generate_content(prompt)
+            response = model.generate_content(full_prompt)
             return response.text
             
         except Exception as e:

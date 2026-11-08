@@ -332,7 +332,7 @@ class MainWindow(QMainWindow):
             self.i18n.t("menu.about"),
             """<h2>Tradomatic</h2>
             <p>Version 1.0</p>
-            <p>Traducteur autonome pour textes philosophiques</p>
+            <p>Traducteur autonome avec glossaire terminologique intelligent</p>
             <p>Développé avec PyQt6</p>
             <p>© 2026</p>"""
         )

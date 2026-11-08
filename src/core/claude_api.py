@@ -4,7 +4,7 @@ Implémentation du connecteur pour l'API Claude (Anthropic).
 
 import json
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import anthropic
 
 from .api_connector import APIConnector, retry
@@ -125,36 +125,43 @@ class ClaudeAPI(APIConnector):
             raise
     
     @retry(max_attempts=3)
-    def consolidate_glossary(self, glossary: Dict[str, str]) -> Dict[str, Any]:
+    def consolidate_glossary(self, glossary: Dict[str, str],
+                             prompt: Optional[str] = None) -> Dict[str, Any]:
         """
         Consolide le glossaire via Claude.
         """
         self._rate_limit_wait()
         
-        # Préparer le prompt
-        glossary_text = "\n".join([f"- {de}: {fr}" for de, fr in glossary.items()])
-        
-        system_prompt = """Tu es un expert en traduction philosophique allemand-français.
-Analyse le glossaire fourni et détecte les incohérences terminologiques."""
-        
-        user_prompt = f"""Voici le glossaire actuel :
+        if prompt:
+            system_prompt = (
+                "Tu es un expert en traduction terminologique. "
+                "Analyse le glossaire fourni et détecte les incohérences."
+            )
+            user_prompt = prompt
+        else:
+            glossary_text = "\n".join([f"- {src}: {tgt}" for src, tgt in glossary.items()])
+            system_prompt = (
+                "Tu es un expert en traduction terminologique. "
+                "Analyse le glossaire fourni et détecte les incohérences."
+            )
+            user_prompt = f"""Voici le glossaire actuel :
 
 {glossary_text}
 
-Détecte les incohérences (même concept allemand traduit différemment).
+Détecte les incohérences (même concept source traduit différemment).
 Propose une harmonisation raisonnée.
 
 Réponds UNIQUEMENT avec un objet JSON valide (sans markdown) :
 {{
   "incohérences_détectées": [
     {{
-      "terme_de": "...",
+      "terme_source": "...",
       "traductions_divergentes": ["traduction1", "traduction2"],
       "traduction_recommandée": "...",
       "justification": "..."
     }}
   ],
-  "glossaire_consolidé": {{"terme_de": "terme_fr", ...}}
+  "glossaire_consolidé": {{"terme_source": "terme_cible", ...}}
 }}"""
         
         try:
@@ -175,22 +182,27 @@ Réponds UNIQUEMENT avec un objet JSON valide (sans markdown) :
             raise
     
     @retry(max_attempts=3)
-    def generate_summary(self, pages: List[str]) -> str:
+    def generate_summary(self, pages: List[str],
+                         prompt: Optional[str] = None) -> str:
         """
         Génère un résumé via Claude.
         """
         self._rate_limit_wait()
         
-        pages_text = "\n\n---\n\n".join(pages)
-        
-        system_prompt = """Tu es un expert en philosophie allemande.
-Résume de manière concise l'argumentation philosophique."""
-        
-        user_prompt = f"""Résume en 200 mots l'argumentation philosophique de ces pages :
+        if prompt:
+            user_prompt = prompt
+        else:
+            pages_text = "\n\n---\n\n".join(pages)
+            user_prompt = f"""Résume en 200 mots le contenu et l'argumentation de ces pages :
 
 {pages_text}
 
 Focus sur : concepts développés, thèses avancées, transitions argumentatives."""
+        
+        system_prompt = (
+            "Tu es un expert en synthèse de textes. "
+            "Résume de manière concise le contenu fourni."
+        )
         
         try:
             response = self.client.messages.create(

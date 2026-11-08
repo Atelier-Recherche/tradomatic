@@ -166,7 +166,13 @@ class Translator:
             logger.info("Génération d'un résumé contextuel...")
             pages_for_summary = self.context.get_pages_for_summary()
             try:
-                summary = self.api.generate_summary(pages_for_summary)
+                pages_text = "\n\n---\n\n".join(pages_for_summary)
+                summary_template = self.prompts.get("summary_prompt", "")
+                if summary_template:
+                    summary_prompt = summary_template.format(pages_recentes=pages_text)
+                    summary = self.api.generate_summary(pages_for_summary, prompt=summary_prompt)
+                else:
+                    summary = self.api.generate_summary(pages_for_summary)
                 self.context.add_summary(summary)
             except Exception as e:
                 logger.error(f"Erreur lors de la génération du résumé: {e}")
@@ -187,16 +193,31 @@ class Translator:
         
         try:
             glossary_dict = self.glossary.get_all_terms()
-            result = self.api.consolidate_glossary(glossary_dict)
+            glossary_text = "\n".join(
+                [f"- {src}: {tgt}" for src, tgt in glossary_dict.items()]
+            )
+            consolidation_template = self.prompts.get("consolidation_prompt", "")
+            if consolidation_template:
+                consolidation_prompt = consolidation_template.format(
+                    glossaire_recent=glossary_text
+                )
+                result = self.api.consolidate_glossary(
+                    glossary_dict, prompt=consolidation_prompt
+                )
+            else:
+                result = self.api.consolidate_glossary(glossary_dict)
             
             # Afficher les incohérences détectées
             incoherences = result.get("incohérences_détectées", [])
             if incoherences:
                 logger.warning(f"{len(incoherences)} incohérence(s) détectée(s):")
                 for inc in incoherences:
-                    logger.warning(f"  - {inc['terme_de']}: "
-                                 f"{inc['traductions_divergentes']} → "
-                                 f"{inc['traduction_recommandée']}")
+                    terme = inc.get("terme_source") or inc.get("terme_de", "?")
+                    logger.warning(
+                        f"  - {terme}: "
+                        f"{inc.get('traductions_divergentes')} → "
+                        f"{inc.get('traduction_recommandée')}"
+                    )
             else:
                 logger.info("Aucune incohérence détectée")
             
@@ -376,7 +397,7 @@ class Translator:
             
             with open(final_file, 'w', encoding='utf-8') as outf:
                 # En-tête
-                outf.write("# Arbeit am Mythos - Traduction\n\n")
+                outf.write("# Traduction complète\n\n")
                 outf.write("---\n\n")
                 
                 # Assembler toutes les pages

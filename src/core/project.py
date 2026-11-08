@@ -49,7 +49,8 @@ class Project:
             "checkpoint_frequency": 10,
             "source_language": "allemand",
             "target_language": "francais",
-            "use_glossary": True
+            "use_glossary": True,
+            "translation_profile": "custom"
         }
         
         # Prompts personnalisés
@@ -138,6 +139,7 @@ class Project:
             project.translation_settings.setdefault("source_language", "allemand")
             project.translation_settings.setdefault("target_language", "francais")
             project.translation_settings.setdefault("use_glossary", True)
+            project.translation_settings.setdefault("translation_profile", "custom")
             project.prompts = data.get("prompts", {})
             project.progress = data.get("progress", {})
             project.ui_settings = data.get("ui_settings", {})

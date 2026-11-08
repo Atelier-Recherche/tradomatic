@@ -24,7 +24,8 @@
     "checkpoint_frequency": 10,
     "source_language": "allemand",
     "target_language": "francais",
-    "use_glossary": true
+    "use_glossary": true,
+    "translation_profile": "custom"
   },
   "prompts": {
     "system_prompt": "",

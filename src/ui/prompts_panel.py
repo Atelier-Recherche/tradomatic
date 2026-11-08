@@ -326,3 +326,23 @@ class PromptsPanel(QWidget):
         """
         self.save_current_prompt()
         return self.prompts.copy()
+
+    def apply_prompts(self, prompts: dict):
+        """
+        Remplace les prompts courants (ex. application d'un preset).
+        
+        Args:
+            prompts: Dict des prompts à appliquer
+        """
+        self._loading = True
+        try:
+            self.prompts = prompts.copy()
+            key = self.get_current_prompt_key()
+            self._current_prompt_key = key
+            self.editor.blockSignals(True)
+            self.editor.setPlainText(self.prompts.get(key, ""))
+            self.editor.blockSignals(False)
+            self.update_help_panel()
+            logger.info("Prompts appliqués depuis un preset")
+        finally:
+            self._loading = False
